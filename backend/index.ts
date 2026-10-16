@@ -4,13 +4,15 @@ import { spawn } from 'child_process';
 import { DownloadItem } from './history';
 import fs from 'fs';
 import path from 'path';
+import { error } from 'console';
 
 const app = express();
 const PORT = process.env.PORT || 1500;
 
 app.use(cors({
-    origin: 'http://localhost:3000',
-    methods: ['POST']
+  origin: '*',
+  exposedHeaders: ['Content-Disposition'],
+  methods: ['GET', 'POST', 'OPTIONS'],
 }));
 
 app.use(express.json());
@@ -30,45 +32,37 @@ app.post('/api/download', (req: Request, res: Response): any => {
     const uniqueId = Date.now().toString();
     const outputPath = path.join(TEMP_DIR, `video_${uniqueId}.mp4`);
 
-const downloadProcess = spawn('yt-dlp', [
-    // 1. Try best under 100MB
-    '-f', 'bestvideo[filesize_approx<=100M][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best', 
-    '-o', outputPath, 
-    url
-], { shell: true });
-    downloadProcess.on('error', (err) => {
-        console.error(`Failed to start yt-dlp: ${err.message}`);
+    const downloadProcess = spawn('yt-dlp', [
+        '--cookies-from-browser', 'chrome',
+        '-S', 'vcodec:h264,res:720,acodec:m4a',
+        '--merge-output-format', 'mp4',
+        '-o', `"${outputPath}"`,
+        `"${url}"`
+    ], { shell: true });
+
+    downloadProcess.stdout.on('data', (data) => {
+        console.log(`[YT-DLP OUTPUT]: ${data.toString().trim()}`);
     });
 
     downloadProcess.stderr.on('data', (data) => {
-        console.error(`yt-dlp log: ${data}`);
+        console.error(`[YT-DLP ERROR]: ${data.toString().trim()}`);
     });
 
     downloadProcess.on('close', (code) => {
+        console.log(`[PROCESS CLOSED] Exited with code ${code}`);
+        
         if (code === 0 && fs.existsSync(outputPath)) {
-
             res.download(outputPath, 'video.mp4', (err) => {
-                // 4. Cleanup: Delete the file AFTER the user finishes downloading
-                // (or if they cancel the download halfway)
                 fs.unlink(outputPath, (unlinkErr) => {
-                    if (unlinkErr) console.error(`Failed to delete ${outputPath}`, unlinkErr);
+                    if (unlinkErr) console.error(`[CLEANUP ERROR] Failed to delete ${outputPath}`, unlinkErr);
                 });
             });
         } else {
-             res.status(500).json({ error: 'Failed to process video' });
+            res.status(500).json({ error: 'Failed to process video. Check terminal logs.' });
         }
     });
-
-    req.on('close', () => {
-        if (!res.headersSent) {
-            console.log('Client aborted request. Killing yt-dlp...');
-            downloadProcess.kill('SIGTERM');
-            
-            if (fs.existsSync(outputPath)) {
-                fs.unlinkSync(outputPath);
-            }
-        }
-    });
+    
+    // The req.on('close') assassination block has been completely deleted.
 });
 
 // const saveToHistory = (url: string, format: 'mp4' | 'mp3') => {
