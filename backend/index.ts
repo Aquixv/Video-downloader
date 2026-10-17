@@ -61,23 +61,7 @@ app.post('/api/download', (req: Request, res: Response): any => {
             res.status(500).json({ error: 'Failed to process video. Check terminal logs.' });
         }
     });
-    
-    // The req.on('close') assassination block has been completely deleted.
 });
-
-// const saveToHistory = (url: string, format: 'mp4' | 'mp3') => {
-//   const existing: DownloadItem[] = JSON.parse(localStorage.getItem('download_history') || '[]');
-  
-//   const newItem: DownloadItem = {
-//     id: crypto.randomUUID(),
-//     url,
-//     format,
-//     timestamp: Date.now(),
-//   };
-
-//   const updated = [newItem, ...existing.filter(item => item.url !== url)].slice(0, 10);
-//   localStorage.setItem('download_history', JSON.stringify(updated));
-// };
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
