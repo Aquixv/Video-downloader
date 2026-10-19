@@ -29,20 +29,52 @@ const scrapeYouTubePost = async (url: string) => {
         const html = await response.text();
 
         let images: string[] = [];
+
         const jsonMatch = html.match(/var ytInitialData = (\{.*?\});<\/script>/);
         
         if (jsonMatch && jsonMatch[1]) {
             const ytData = JSON.parse(jsonMatch[1]);
-            const imageRegex = /"url":"(https:\/\/yt3\.ggpht\.com\/[a-zA-Z0-9_-]+-[a-zA-Z0-9_-]+-[a-zA-Z0-9_-]+)"/g;
-            
-            let match;
-            while ((match = imageRegex.exec(jsonMatch[1])) !== null) {
-                if (!images.includes(match[1])) {
-                    images.push(match[1]);
+
+            // Recursive hunter function
+            const findImagesInJson = (obj: any): string[] => {
+                let urls: string[] = [];
+                
+                if (Array.isArray(obj)) {
+                    for (const item of obj) urls = urls.concat(findImagesInJson(item));
+                } else if (typeof obj === 'object' && obj !== null) {
+                    
+                    // TARGET 1: Multi-Image Carousels
+                    if (obj.postMultiImageRenderer && obj.postMultiImageRenderer.images) {
+                        obj.postMultiImageRenderer.images.forEach((imgObj: any) => {
+                            if (imgObj.backstageImageRenderer?.image?.thumbnails) {
+                                const thumbs = imgObj.backstageImageRenderer.image.thumbnails;
+                                const largest = thumbs[thumbs.length - 1]; // YouTube orders them smallest to largest
+                                if (largest && largest.url) urls.push(largest.url);
+                            }
+                        });
+                        return urls; // We found the carousel, stop digging this branch
+                    }
+                    
+                    // TARGET 2: Single Image Posts
+                    if (obj.backstageAttachment?.backstageImageRenderer?.image?.thumbnails) {
+                        const thumbs = obj.backstageAttachment.backstageImageRenderer.image.thumbnails;
+                        const largest = thumbs[thumbs.length - 1];
+                        if (largest && largest.url) urls.push(largest.url);
+                        return urls;
+                    }
+
+                    // Keep digging down the tree
+                    for (const key of Object.keys(obj)) {
+                        urls = urls.concat(findImagesInJson(obj[key]));
+                    }
                 }
-            }
+                return urls;
+            };
+
+            images = findImagesInJson(ytData);
         }
 
+        // The Meta Tag Fallback (just in case the JSON structure ever breaks)
         if (images.length === 0) {
             const metaMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
             if (metaMatch && metaMatch[1]) {
@@ -50,13 +82,15 @@ const scrapeYouTubePost = async (url: string) => {
             }
         }
 
-        return images;
+        // YouTube URLs sometimes omit the 'https:' prefix (e.g. "//yt3.ggpht.com/...")
+        return images.map(img => img.startsWith('//') ? `https:${img}` : img);
+
     } catch (error) {
         console.error('Scraping failed:', error);
         return [];
     }
 };
-// Added "async" and "Promise<any>" here
+
 app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     const { url } = req.body;
 
@@ -75,7 +109,34 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         const imageUrls = await scrapeYouTubePost(url);
         
         if (imageUrls.length > 0) {
-            return res.json({ type: 'gallery', images: imageUrls, isRawUrls: true });
+            console.log(`[ROUTER] Found ${imageUrls.length} images. Proxying sequentially to avoid 429...`);
+            const imagesBase64 = [];
+
+            for (let i = 0; i < imageUrls.length; i++) {
+                try {
+                    const imgRes = await fetch(imageUrls[i], {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+                    });
+                    
+                    if (imgRes.ok) {
+                        const buffer = await imgRes.arrayBuffer();
+                        const base64 = Buffer.from(buffer).toString('base64');
+                        // YouTube serves these natively as WebP or JPEG
+                        imagesBase64.push(`data:image/webp;base64,${base64}`);
+                    }
+
+                    // Force the backend to wait 800ms before asking YouTube for the next image
+                    if (i < imageUrls.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1600));
+                    }
+                } catch (err) {
+                    console.error(`[PROXY ERROR] Failed to fetch image ${i + 1}`, err);
+                }
+            }
+
+            // Send back the exact same Base64 format as the TikTok fallback
+            // We no longer need isRawUrls: true!
+            return res.json({ type: 'gallery', images: imagesBase64 });
         } else {
             return res.status(500).json({ error: 'Failed to extract images from post.' });
         }

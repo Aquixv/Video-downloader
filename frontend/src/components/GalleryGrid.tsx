@@ -14,42 +14,42 @@ export default function GalleryGrid({ images, isRawUrls = false }: GalleryGridPr
 
   const triggerDownload = async (src: string, index: number) => {
     try {
-      let downloadUrl = src;
-      let extension = 'jpg'; // Default fallback
-
-      if (isRawUrls) {
-        // Fetch the file to get the raw data
-        const res = await fetch(src);
-        const blob = await res.blob();
+      // Create a hidden, off-screen image element
+      const img = new window.Image();
+      
+      img.onload = () => {
+        // Create an off-screen canvas matching the image dimensions
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
         
-        // Ask the blob what its true format is (e.g., "image/webp")
-        if (blob.type.includes('webp')) extension = 'webp';
-        else if (blob.type.includes('png')) extension = 'png';
-        else if (blob.type.includes('gif')) extension = 'gif';
-        else extension = 'jpg';
-
-        downloadUrl = window.URL.createObjectURL(blob);
-      } else {
-        // It's a Base64 string from gallery-dl (data:image/webp;base64,...)
-        // We extract the format directly from the string header
-        const mimeMatch = src.match(/data:image\/([a-zA-Z0-9]+);/);
-        if (mimeMatch && mimeMatch[1]) {
-          extension = mimeMatch[1] === 'jpeg' ? 'jpg' : mimeMatch[1];
+        if (ctx) {
+          // Fill a white background first (so transparent PNGs don't get black backgrounds)
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Paint the WebP/PNG image on top
+          ctx.drawImage(img, 0, 0);
+          
+          // Force the browser to natively encode the canvas back out as a pure JPEG
+          const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.95); // 0.95 = 95% quality
+          
+          // Trigger the download of the new JPG
+          const a = document.createElement('a');
+          a.href = jpegDataUrl;
+          a.download = `photo_${index + 1}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
         }
-      }
+      };
 
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `photo_${index + 1}.${extension}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      // Feed the Base64 string to the hidden image to kick off the conversion
+      img.src = src;
 
-      if (isRawUrls) {
-        window.URL.revokeObjectURL(downloadUrl);
-      }
     } catch (err) {
-      console.error('Failed to download image:', err);
+      console.error('Failed to convert and download image:', err);
     }
   };
 
@@ -58,7 +58,7 @@ export default function GalleryGrid({ images, isRawUrls = false }: GalleryGridPr
       // Small staggering timeout prevents browsers from throttling bulk link triggers
       setTimeout(() => {
         triggerDownload(img, idx);
-      }, idx * 1500);
+      }, idx * 2000);
     });
   };
 
