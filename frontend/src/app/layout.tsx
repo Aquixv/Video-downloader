@@ -1,8 +1,8 @@
 // import './globals.css'; // Optional: Keep this only if you didn't delete globals.css too!
 
 export const metadata = {
-  title: 'Plug & Play Downloader',
-  description: 'Download videos locally without tracking.',
+  title: 'Media Downloader',
+  description: 'Download videos locally without watermark',
 };
 
 export default function RootLayout({

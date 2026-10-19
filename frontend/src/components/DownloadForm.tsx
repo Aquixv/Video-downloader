@@ -14,14 +14,27 @@ export default function DownloadForm() {
     
     setStatus('downloading');
     try {
-      const res = await fetch('http://localhost:1500/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      
-      if (!res.ok) throw new Error('Download failed');
-      
+ // Inside your handleDownload function...
+    const res = await fetch('http://localhost:1500/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    
+    if (!res.ok) throw new Error('Download failed');
+
+    const contentType = res.headers.get('content-type');
+
+    if (contentType && contentType.includes('application/json')) {
+      // IT'S A PHOTO GALLERY
+      const data = await res.json();
+      if (data.type === 'gallery') {
+        // TODO: Save data.images to a new state variable (e.g., setGallery(data.images))
+        // so you can render a CSS grid of images below the form
+        console.log("Received gallery with", data.images.length, "images!");
+      }
+    } else {
+      // IT'S A VIDEO
       const blob = await res.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       
@@ -32,6 +45,7 @@ export default function DownloadForm() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(blobUrl);
+    }
 
       const existing = JSON.parse(localStorage.getItem('download_history') || '[]');
       const newItem = {
