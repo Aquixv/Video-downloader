@@ -1,0 +1,87 @@
+.galleryWrapper {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.countText {
+  font-size: 1rem;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.downloadAllBtn {
+  background: #0070f3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.downloadAllBtn:hover {
+  background: #005bb5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.card {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+}
+
+.imageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #111;
+  overflow: hidden;
+}
+
+.previewImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.card:hover .previewImg {
+  transform: scale(1.03);
+}
+
+.downloadSingleBtn {
+  display: block;
+  width: 100%;
+  padding: 0.6rem;
+  background: #242424;
+  color: #e0e0e0;
+  border: none;
+  border-top: 1px solid #333;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.downloadSingleBtn:hover {
+  background: #333;
+  color: #fff;
+}
