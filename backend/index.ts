@@ -21,25 +21,75 @@ const TEMP_DIR = path.join(__dirname, 'temp_downloads');
 if (!fs.existsSync(TEMP_DIR)) {
     fs.mkdirSync(TEMP_DIR);
 }
+const scrapeYouTubePost = async (url: string) => {
+    try {
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        });
+        const html = await response.text();
 
-app.post('/api/download', (req: Request, res: Response): any => {
+        let images: string[] = [];
+        const jsonMatch = html.match(/var ytInitialData = (\{.*?\});<\/script>/);
+        
+        if (jsonMatch && jsonMatch[1]) {
+            const ytData = JSON.parse(jsonMatch[1]);
+            const imageRegex = /"url":"(https:\/\/yt3\.ggpht\.com\/[a-zA-Z0-9_-]+-[a-zA-Z0-9_-]+-[a-zA-Z0-9_-]+)"/g;
+            
+            let match;
+            while ((match = imageRegex.exec(jsonMatch[1])) !== null) {
+                if (!images.includes(match[1])) {
+                    images.push(match[1]);
+                }
+            }
+        }
+
+        if (images.length === 0) {
+            const metaMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
+            if (metaMatch && metaMatch[1]) {
+                images.push(metaMatch[1]);
+            }
+        }
+
+        return images;
+    } catch (error) {
+        console.error('Scraping failed:', error);
+        return [];
+    }
+};
+// Added "async" and "Promise<any>" here
+app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     const { url } = req.body;
-    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    if (!url) {
+        return res.status(400).json({ error: 'URL is required' });
+    }
 
     const uniqueId = Date.now().toString();
     const outputPath = path.join(TEMP_DIR, `video_${uniqueId}.mp4`);
     const galleryDir = path.join(TEMP_DIR, `gallery_${uniqueId}`);
 
-    // 1. SMART ROUTER: Does this link look like an image gallery?
-    const isImageGallery = url.includes('tiktok.com/photo/') ||
-                           url.includes('reddit.com/r/');
+    // --- ROUTE 1: YOUTUBE COMMUNITY POSTS (Custom Scraper) ---
+    if (url.includes('youtube.com/post/')) {
+        console.log('[ROUTER] YouTube Post detected. Running custom HTML scraper...');
+        
+        const imageUrls = await scrapeYouTubePost(url);
+        
+        if (imageUrls.length > 0) {
+            return res.json({ type: 'gallery', images: imageUrls, isRawUrls: true });
+        } else {
+            return res.status(500).json({ error: 'Failed to extract images from post.' });
+        }
+    }
 
-    if (isImageGallery) {
+    // --- ROUTE 2: TIKTOK PHOTOS & REDDIT (gallery-dl) ---
+    const isImageGallery = url.includes('tiktok.com/photo/') || url.includes('reddit.com/r/');
+
+ if (isImageGallery) {
         console.log('[ROUTER] Image URL detected. Routing directly to gallery-dl...');
         
         const galleryProcess = spawn('gallery-dl', [
             '--dest', `"${galleryDir}"`,
-            '--cookies-from-browser', 'edge', // Or '--cookies', '"master_cookies.txt"'
+            '--cookies-from-browser', 'edge',
             `"${url}"`
         ], { shell: true });
 
@@ -82,10 +132,9 @@ app.post('/api/download', (req: Request, res: Response): any => {
             }
         });
 
-        return; // Stop execution here so yt-dlp doesn't run
+        return;
     }
 
-    // 2. VIDEO ROUTE: If it's not a known gallery, assume it's a video.
     console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
     const downloadProcess = spawn('yt-dlp', [
         '--cookies-from-browser', 'edge',

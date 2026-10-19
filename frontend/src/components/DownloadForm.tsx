@@ -29,9 +29,35 @@ export default function DownloadForm() {
       // IT'S A PHOTO GALLERY
       const data = await res.json();
       if (data.type === 'gallery') {
-        // TODO: Save data.images to a new state variable (e.g., setGallery(data.images))
-        // so you can render a CSS grid of images below the form
         console.log("Received gallery with", data.images.length, "images!");
+        
+        // Loop through the array and download each image
+        data.images.forEach(async (imgSrc: string, index: number) => {
+            try {
+                let downloadUrl = imgSrc;
+                
+                // If it's a raw YouTube URL, we have to fetch it as a blob first 
+                // so the browser downloads it instead of just opening it in a new tab
+                if (data.isRawUrls) {
+                    const imgRes = await fetch(imgSrc);
+                    const imgBlob = await imgRes.blob();
+                    downloadUrl = window.URL.createObjectURL(imgBlob);
+                }
+
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `photo_${index + 1}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                if (data.isRawUrls) {
+                    window.URL.revokeObjectURL(downloadUrl);
+                }
+            } catch (err) {
+                console.error('Failed to trigger image download', err);
+            }
+        });
       }
     } else {
       // IT'S A VIDEO
