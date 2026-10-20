@@ -90,7 +90,6 @@ const scrapeYouTubePost = async (url: string) => {
         return [];
     }
 };
-
 app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     const { url } = req.body;
 
