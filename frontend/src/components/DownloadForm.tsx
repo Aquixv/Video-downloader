@@ -44,7 +44,27 @@ export default function DownloadForm() {
         setVideoPreview(blobUrl);
       }
       
-      // Keep your localStorage history logic here...
+// 1. Determine format type for the UI
+      const formatType = contentType && contentType.includes('application/json') ? 'gallery' : 'mp4';
+      
+      // 2. Retrieve the existing history array
+      const existing = JSON.parse(localStorage.getItem('download_history') || '[]');
+      
+      // 3. Create the new entry
+      const newItem = {
+        id: crypto.randomUUID(),
+        url,
+        format: formatType,
+        timestamp: Date.now(),
+      };
+      
+      // 4. Push new item to the front, filter out older duplicates of the same URL, and cap at 10 items
+      const updated = [newItem, ...existing.filter((item: any) => item.url !== url)].slice(0, 10);
+      
+      localStorage.setItem('download_history', JSON.stringify(updated));
+      
+      // 5. Fire the custom event so your new HistoryPanel sidebar updates instantly
+      window.dispatchEvent(new Event('historyUpdated'));
 
     } catch (error) {
       console.error(error);

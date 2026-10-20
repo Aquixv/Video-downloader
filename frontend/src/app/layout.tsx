@@ -1,4 +1,4 @@
-// import './globals.css'; // Optional: Keep this only if you didn't delete globals.css too!
+import './globals.css';
 
 export const metadata = {
   title: 'Media Downloader',

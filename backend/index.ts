@@ -21,6 +21,25 @@ const TEMP_DIR = path.join(__dirname, 'temp_downloads');
 if (!fs.existsSync(TEMP_DIR)) {
     fs.mkdirSync(TEMP_DIR);
 }
+setInterval(() => {
+    try {
+        const files = fs.readdirSync(TEMP_DIR);
+        const now = Date.now();
+        
+        files.forEach((file) => {
+            const filePath = path.join(TEMP_DIR, file);
+            const stats = fs.statSync(filePath);
+            
+            // If the file is older than 60 minutes (3600000 ms)
+            if (now - stats.mtimeMs > 3600000) {
+                fs.unlinkSync(filePath);
+                console.log(`[CLEANUP] Deleted orphaned temp file: ${file}`);
+            }
+        });
+    } catch (err) {
+        console.error('[CLEANUP ERROR] Failed to run garbage collection:', err);
+    }
+}, 3600000);
 const scrapeYouTubePost = async (url: string) => {
     try {
         const response = await fetch(url, {
@@ -149,7 +168,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         
         const galleryProcess = spawn('gallery-dl', [
             '--dest', `"${galleryDir}"`,
-            '--cookies-from-browser', 'edge',
+            '--cookies', 'cookies.txt',
             `"${url}"`
         ], { shell: true });
 
@@ -219,7 +238,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
 
     console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
     const downloadProcess = spawn('yt-dlp', [
-        '--cookies-from-browser', 'edge',
+        '--cookies', 'cookies.txt',
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
         '-o', `"${outputPath}"`,
@@ -250,7 +269,7 @@ app.post('/api/audio', (req: Request, res: Response): any => {
 
     // -x extracts audio, --audio-format forces mp3
     const audioProcess = spawn('yt-dlp', [
-        '--cookies-from-browser', 'edge',
+        '--cookies', 'cookies.txt',
         '-x', '--audio-format', 'mp3',
         '-o', `"${outputPath}"`,
         `"${url}"`

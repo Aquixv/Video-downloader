@@ -1,0 +1,31 @@
+.layoutWrapper {
+  display: flex;
+  gap: 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  align-items: flex-start;
+}
+
+.mainContent {
+  flex: 1;
+  min-width: 0; /* Prevents flex items from overflowing */
+}
+
+.sidebar {
+  width: 350px;
+  flex-shrink: 0;
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+/* Stack vertically on mobile */
+@media (max-width: 900px) {
+  .layoutWrapper {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+  }
+}
