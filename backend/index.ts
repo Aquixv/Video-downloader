@@ -143,7 +143,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     }
 
     // --- ROUTE 2: TIKTOK PHOTOS & REDDIT (gallery-dl) ---
-    const isImageGallery = url.includes('tiktok.com/photo/') || url.includes('reddit.com/r/');
+    const isImageGallery = url.includes('tiktok.com/@') && url.includes('/photo/') || url.includes('reddit.com/r/');
 
  if (isImageGallery) {
         console.log('[ROUTER] Image URL detected. Routing directly to gallery-dl...');
@@ -175,15 +175,37 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
                         return results;
                     };
 
-                    const allFiles = findFilesInDir(galleryDir);
-                    const imagesBase64 = allFiles.map(filePath => {
-                        const base64 = fs.readFileSync(filePath, { encoding: 'base64' });
-                        const ext = path.extname(filePath).replace('.', '') || 'jpeg';
-                        return `data:image/${ext};base64,${base64}`;
-                    });
+                    // Inside your galleryProcess.on('close') block:
+                        const allFiles = findFilesInDir(galleryDir);
+                        
+                        const imageFiles = allFiles.filter(file => {
+                            const ext = path.extname(file).toLowerCase();
+                            return ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+                        });
 
-                    fs.rmSync(galleryDir, { recursive: true, force: true });
-                    return res.json({ type: 'gallery', images: imagesBase64 });
+                        // Isolate the background audio file if it exists
+                        const audioFile = allFiles.find(file => {
+                            const ext = path.extname(file).toLowerCase();
+                            return ['.mp3', '.m4a', '.wav'].includes(ext);
+                        });
+                        
+                        const imagesBase64 = imageFiles.map(filePath => {
+                            const base64 = fs.readFileSync(filePath, { encoding: 'base64' });
+                            const ext = path.extname(filePath).replace('.', '') || 'jpeg';
+                            return `data:image/${ext};base64,${base64}`;
+                        });
+
+                        let audioBase64 = null;
+                        if (audioFile) {
+                            const base64 = fs.readFileSync(audioFile, { encoding: 'base64' });
+                            const ext = path.extname(audioFile).replace('.', '') || 'mp3';
+                            audioBase64 = `data:audio/${ext};base64,${base64}`;
+                        }
+
+                        fs.rmSync(galleryDir, { recursive: true, force: true });
+                        
+                        // Send both back
+                        res.json({ type: 'gallery', images: imagesBase64, audio: audioBase64 });
                 } catch (err) {
                     console.error('[GALLERY ERROR]:', err);
                     return res.status(500).json({ error: 'Failed to process gallery images.' });
@@ -220,7 +242,31 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         }
     });
 });
+app.post('/api/audio', (req: Request, res: Response): any => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
 
+    const uniqueId = Date.now().toString();
+    const outputPath = path.join(TEMP_DIR, `audio_${uniqueId}.mp3`);
+
+    // -x extracts audio, --audio-format forces mp3
+    const audioProcess = spawn('yt-dlp', [
+        '--cookies-from-browser', 'edge',
+        '-x', '--audio-format', 'mp3',
+        '-o', `"${outputPath}"`,
+        `"${url}"`
+    ], { shell: true });
+
+    audioProcess.on('close', (code) => {
+        if (code === 0 && fs.existsSync(outputPath)) {
+            res.download(outputPath, 'audio.mp3', () => {
+                fs.unlink(outputPath, () => {});
+            });
+        } else {
+            res.status(500).json({ error: 'Failed to extract audio.' });
+        }
+    });
+});
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
