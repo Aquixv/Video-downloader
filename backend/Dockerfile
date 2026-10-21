@@ -20,7 +20,7 @@ RUN npm install
 
 # Copy your source code AND the exported cookies file
 COPY . .
-COPY master_cookies.txt ./
+COPY cookies.txt ./
 
 # Build the TypeScript code
 RUN npm run build
