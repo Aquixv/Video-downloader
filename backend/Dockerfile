@@ -4,7 +4,7 @@ FROM node:20-bookworm
 RUN apt-get update && apt-get install -y ffmpeg python3 python3-pip && rm -rf /var/lib/apt/lists/*
 
 # Install both CLI tools globally
-RUN pip3 install yt-dlp gallery-dl --break-system-packages
+RUN pip3 install "yt-dlp[default,curl-cffi]" gallery-dl --break-system-packages
 
 # Set up the working directory
 WORKDIR /usr/src/app
