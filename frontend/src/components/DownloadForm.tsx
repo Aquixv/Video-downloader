@@ -22,7 +22,7 @@ export default function DownloadForm() {
     setVideoPreview(null);
 
     try {
-      const res = await fetch('https://video-downloader-jjay.onrender.com/download', {
+      const res = await fetch('https://video-downloader-jjay.onrender.com/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
@@ -76,7 +76,7 @@ export default function DownloadForm() {
   // Dedicated function for the new Audio route
   const handleExtractAudio = async () => {
     try {
-      const res = await fetch('https://video-downloader-jjay.onrender.com//audio', {
+      const res = await fetch('https://video-downloader-jjay.onrender.com/api/audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
