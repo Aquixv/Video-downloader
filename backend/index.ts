@@ -19,10 +19,20 @@ app.use(express.json());
 app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
-
 const TEMP_DIR = path.join(__dirname, 'temp_downloads');
 if (!fs.existsSync(TEMP_DIR)) {
     fs.mkdirSync(TEMP_DIR);
+}
+
+// NEW: Copy read-only secret cookies to a writable location
+const WRITABLE_COOKIE_PATH = path.join(TEMP_DIR, 'cookies.txt');
+try {
+    if (fs.existsSync('/etc/secrets/cookies.txt')) {
+        fs.copyFileSync('/etc/secrets/cookies.txt', WRITABLE_COOKIE_PATH);
+        console.log('[INIT] Copied secret cookies to writable temp directory.');
+    }
+} catch (err) {
+    console.error('[INIT ERROR] Failed to copy cookies file:', err);
 }
 setInterval(() => {
     try {
@@ -171,7 +181,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         
         const galleryProcess = spawn('gallery-dl', [
             '--dest', `"${galleryDir}"`,
-            '--cookies', '/etc/secrets/cookies.txt',
+            '--cookies', `"${WRITABLE_COOKIE_PATH}"`,
             `"${url}"`
         ], { shell: true });
 
@@ -241,7 +251,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
 
     console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
     const downloadProcess = spawn('yt-dlp', [
-        '--cookies', '/etc/secrets/cookies.txt',
+        '--cookies', `"${WRITABLE_COOKIE_PATH}"`,
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
         '-o', `"${outputPath}"`,
@@ -272,7 +282,7 @@ app.post('/api/audio', (req: Request, res: Response): any => {
 
     // -x extracts audio, --audio-format forces mp3
     const audioProcess = spawn('yt-dlp', [
-        '--cookies', '/etc/secrets/cookies.txt',
+        '--cookies', `"${WRITABLE_COOKIE_PATH}"`,
         '-x', '--audio-format', 'mp3',
         '-o', `"${outputPath}"`,
         `"${url}"`
