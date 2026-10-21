@@ -1,12 +1,7 @@
-# Start with a Node.js base image
 FROM node:20-bullseye
 
 # Install ffmpeg and python (required for yt-dlp and gallery-dl)
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    python3 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg python3 python3-pip && rm -rf /var/lib/apt/lists/*
 
 # Install both CLI tools globally
 RUN pip3 install yt-dlp gallery-dl
