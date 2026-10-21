@@ -16,6 +16,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.get('/health', (req: Request, res: Response) => {
+    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
 const TEMP_DIR = path.join(__dirname, 'temp_downloads');
 if (!fs.existsSync(TEMP_DIR)) {
