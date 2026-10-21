@@ -171,7 +171,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         
         const galleryProcess = spawn('gallery-dl', [
             '--dest', `"${galleryDir}"`,
-            '--cookies', 'etc/secrets/cookies.txt',
+            '--cookies', '/etc/secrets/cookies.txt',
             `"${url}"`
         ], { shell: true });
 
@@ -241,7 +241,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
 
     console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
     const downloadProcess = spawn('yt-dlp', [
-        '--cookies', 'etc/secrets/cookies.txt',
+        '--cookies', '/etc/secrets/cookies.txt',
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
         '-o', `"${outputPath}"`,
@@ -272,7 +272,7 @@ app.post('/api/audio', (req: Request, res: Response): any => {
 
     // -x extracts audio, --audio-format forces mp3
     const audioProcess = spawn('yt-dlp', [
-        '--cookies', 'etc/secrets/cookies.txt',
+        '--cookies', '/etc/secrets/cookies.txt',
         '-x', '--audio-format', 'mp3',
         '-o', `"${outputPath}"`,
         `"${url}"`
