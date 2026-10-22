@@ -4,7 +4,6 @@ import { spawn } from 'child_process';
 import { DownloadItem } from './history';
 import fs from 'fs';
 import path from 'path';
-const userCookies = req.body.cookieHeader;
 const app = express();
 const PORT = process.env.PORT || 1500;
 
@@ -122,8 +121,7 @@ const scrapeYouTubePost = async (url: string) => {
     }
 };
 app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
-    const { url } = req.body;
-
+        const { url, cookieHeader } = req.body;
     if (!url) {
         return res.status(400).json({ error: 'URL is required' });
     }
@@ -250,8 +248,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
 
    console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
     
-    // Extract cookieHeader from the request body (add this at the top of the route if not there)
-    const { url, cookieHeader } = req.body; 
+    // Extract cookieHeader from the request body (add this at the top of the route if not there) 
 
     // Build arguments dynamically
     const ytDlpArgs = [
