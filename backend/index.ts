@@ -270,6 +270,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         '--js-runtime', 'deno', 
         '--impersonate', 'chrome', // Spoofs Chrome TLS fingerprint via curl-cffi
         '--extractor-args', '"youtube:player_client=ios,tv"', 
+        '--no-playlist',
         '-o', `"${outputPath}"`
     ];
 
@@ -321,6 +322,7 @@ app.post('/api/audio', (req: Request, res: Response): any => {
         '--js-runtime', 'deno', 
         '--impersonate', 'chrome',
         '--extractor-args', '"youtube:player_client=ios,tv"', 
+        '--no-playlist',
         '-o', `"${outputPath}"`
     ];
     audioArgs.push(`"${url}"`);
