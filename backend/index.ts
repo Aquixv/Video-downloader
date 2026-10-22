@@ -140,7 +140,7 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         return res.status(400).json({ error: 'URL is required' });
     }
 
-    const uniqueId = Date.now().toString();
+    const uniqueId = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const outputPath = path.join(TEMP_DIR, `video_${uniqueId}.mp4`);
     const galleryDir = path.join(TEMP_DIR, `gallery_${uniqueId}`);
 
@@ -314,7 +314,7 @@ app.post('/api/audio', (req: Request, res: Response): any => {
     const { url, cookieHeader } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
-    const uniqueId = Date.now().toString();
+    const uniqueId = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const outputPath = path.join(TEMP_DIR, `audio_${uniqueId}.mp3`);
 
     const audioArgs = [
