@@ -22,7 +22,21 @@ if (!fs.existsSync(TEMP_DIR)) {
     fs.mkdirSync(TEMP_DIR);
 }
 
-// NEW: Copy read-only secret cookies to a writable location
+const createTempCookieFile = (cookieHeader: string, filePath: string) => {
+    let fileContent = "# Netscape HTTP Cookie File\n";
+    const cookies = cookieHeader.split(';');
+    
+    cookies.forEach(cookie => {
+        const [name, ...rest] = cookie.trim().split('=');
+        if (name && rest.length > 0) {
+            const value = rest.join('=');
+            const expiry = Math.floor(Date.now() / 1000) + 86400; // Expires in 24 hours
+            fileContent += `.youtube.com\tTRUE\t/\tTRUE\t${expiry}\t${name}\t${value}\n`;
+        }
+    });
+    
+    fs.writeFileSync(filePath, fileContent);
+};
 const WRITABLE_COOKIE_PATH = path.join(TEMP_DIR, 'cookies.txt');
 try {
     if (fs.existsSync('/etc/secrets/cookies.txt')) {
@@ -248,19 +262,19 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
 
    console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
     
-    // Extract cookieHeader from the request body (add this at the top of the route if not there) 
+    const uniqueCookiePath = path.join(TEMP_DIR, `cookie_${uniqueId}.txt`);
 
-    // Build arguments dynamically
     const ytDlpArgs = [
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
-        '--js-runtimes', 'node', // Fixes the JS runtime error
+        '--js-runtimes', 'node', 
         '-o', `"${outputPath}"`
     ];
 
     if (cookieHeader) {
-        console.log('[YT-DLP] Using live browser cookies from extension');
-        ytDlpArgs.push('--add-header', `"Cookie: ${cookieHeader}"`);
+        console.log('[YT-DLP] Converting live browser cookies to temp file...');
+        createTempCookieFile(cookieHeader, uniqueCookiePath);
+        ytDlpArgs.push('--cookies', `"${uniqueCookiePath}"`);
     } else {
         console.log('[YT-DLP] Falling back to static cookies.txt');
         ytDlpArgs.push('--cookies', `"${WRITABLE_COOKIE_PATH}"`);
@@ -274,6 +288,11 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     downloadProcess.stderr.on('data', (data) => console.error(`[YT-DLP ERROR]: ${data.toString().trim()}`));
 
     downloadProcess.on('close', (code) => {
+        // Clean up the temporary cookie file immediately after the process ends
+        if (fs.existsSync(uniqueCookiePath)) {
+            fs.unlinkSync(uniqueCookiePath);
+        }
+
         if (code === 0 && fs.existsSync(outputPath)) {
             res.download(outputPath, 'video.mp4', (err) => {
                 fs.unlink(outputPath, (unlinkErr) => {
