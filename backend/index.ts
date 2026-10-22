@@ -268,11 +268,10 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
         
-        // Use Deno instead of Node for better container compatibility
+        // Keep Deno for the JS solver
         '--js-runtime', 'deno', 
         
-        // Spoof the Android client to bypass datacenter IP bot detection
-        '--extractor-args', '"youtube:player_client=android"', 
+        // Removed the Android spoof so it accepts the injected cookies
         
         '-o', `"${outputPath}"`
     ];
