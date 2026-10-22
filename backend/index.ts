@@ -267,14 +267,14 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     const ytDlpArgs = [
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
-        
-        // Keep Deno for the JS solver
         '--js-runtime', 'deno', 
-        
-        // Removed the Android spoof so it accepts the injected cookies
-        
+        '--impersonate', 'chrome', // Spoofs Chrome TLS fingerprint via curl-cffi
+        '--extractor-args', '"youtube:player_client=ios,tv"', 
         '-o', `"${outputPath}"`
     ];
+
+    // Simply append the URL; no cookie branching needed
+    ytDlpArgs.push(`"${url}"`);
 
     if (cookieHeader) {
         console.log('[YT-DLP] Converting live browser cookies to temp file...');
@@ -318,9 +318,12 @@ app.post('/api/audio', (req: Request, res: Response): any => {
 
     const audioArgs = [
         '-x', '--audio-format', 'mp3',
-        '--js-runtimes', 'node',
+        '--js-runtime', 'deno', 
+        '--impersonate', 'chrome',
+        '--extractor-args', '"youtube:player_client=ios,tv"', 
         '-o', `"${outputPath}"`
     ];
+    audioArgs.push(`"${url}"`);
 
     if (cookieHeader) {
         audioArgs.push('--add-header', `"Cookie: ${cookieHeader}"`);
