@@ -141,7 +141,8 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     }
 
     const uniqueId = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-    const outputPath = path.join(TEMP_DIR, `video_${uniqueId}.mp4`);
+    const ytTemplatePath = path.join(TEMP_DIR, `video_${uniqueId}.%(ext)s`);
+    const finalFilePath = path.join(TEMP_DIR, `video_${uniqueId}.mp4`);
     const galleryDir = path.join(TEMP_DIR, `gallery_${uniqueId}`);
 
     // --- ROUTE 1: YOUTUBE COMMUNITY POSTS (Custom Scraper) ---
@@ -268,12 +269,9 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
         '--js-runtime', 'deno', 
-        '--impersonate', 'chrome', // Spoofs Chrome TLS fingerprint via curl-cffi
-        '--extractor-args', '"youtube:player_client=ios,tv"', 
-        '--no-playlist',
-        '-o', `"${outputPath}"`
+        '--no-playlist', 
+        '-o', `"${ytTemplatePath}"`
     ];
-
     // Simply append the URL; no cookie branching needed
     ytDlpArgs.push(`"${url}"`);
 
@@ -294,15 +292,14 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     downloadProcess.stderr.on('data', (data) => console.error(`[YT-DLP ERROR]: ${data.toString().trim()}`));
 
     downloadProcess.on('close', (code) => {
-        // Clean up the temporary cookie file immediately after the process ends
         if (fs.existsSync(uniqueCookiePath)) {
             fs.unlinkSync(uniqueCookiePath);
         }
 
-        if (code === 0 && fs.existsSync(outputPath)) {
-            res.download(outputPath, 'video.mp4', (err) => {
-                fs.unlink(outputPath, (unlinkErr) => {
-                    if (unlinkErr) console.error(`[CLEANUP ERROR] Failed to delete ${outputPath}`, unlinkErr);
+        if (code === 0 && fs.existsSync(finalFilePath)) {
+            res.download(finalFilePath, 'video.mp4', (err) => {
+                fs.unlink(finalFilePath, (unlinkErr) => {
+                    if (unlinkErr) console.error(`[CLEANUP ERROR]`, unlinkErr);
                 });
             });
         } else {
