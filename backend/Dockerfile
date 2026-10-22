@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y ffmpeg python3 python3-pip && rm -rf /v
 
 # Install both CLI tools globally
 RUN pip3 install "yt-dlp[default,curl-cffi]" gallery-dl --break-system-packages
-
+# Install Deno as the preferred JS runtime for yt-dlp challenge solving
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 # Set up the working directory
 WORKDIR /usr/src/app
 
