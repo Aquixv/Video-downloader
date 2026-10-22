@@ -267,7 +267,13 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     const ytDlpArgs = [
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
-        '--js-runtimes', 'node', 
+        
+        // Use Deno instead of Node for better container compatibility
+        '--js-runtime', 'deno', 
+        
+        // Spoof the Android client to bypass datacenter IP bot detection
+        '--extractor-args', '"youtube:player_client=android"', 
+        
         '-o', `"${outputPath}"`
     ];
 
