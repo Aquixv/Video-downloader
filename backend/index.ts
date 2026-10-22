@@ -4,8 +4,7 @@ import { spawn } from 'child_process';
 import { DownloadItem } from './history';
 import fs from 'fs';
 import path from 'path';
-import { error } from 'console';
-
+const userCookies = req.body.cookieHeader;
 const app = express();
 const PORT = process.env.PORT || 1500;
 
@@ -249,14 +248,30 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         return;
     }
 
-    console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
-    const downloadProcess = spawn('yt-dlp', [
-        '--cookies', `"${WRITABLE_COOKIE_PATH}"`,
+   console.log('[ROUTER] Video URL suspected. Routing to yt-dlp...');
+    
+    // Extract cookieHeader from the request body (add this at the top of the route if not there)
+    const { url, cookieHeader } = req.body; 
+
+    // Build arguments dynamically
+    const ytDlpArgs = [
         '-S', 'vcodec:h264,res:720,acodec:m4a',
         '--merge-output-format', 'mp4',
-        '-o', `"${outputPath}"`,
-        `"${url}"`
-    ], { shell: true });
+        '--js-runtimes', 'node', // Fixes the JS runtime error
+        '-o', `"${outputPath}"`
+    ];
+
+    if (cookieHeader) {
+        console.log('[YT-DLP] Using live browser cookies from extension');
+        ytDlpArgs.push('--add-header', `"Cookie: ${cookieHeader}"`);
+    } else {
+        console.log('[YT-DLP] Falling back to static cookies.txt');
+        ytDlpArgs.push('--cookies', `"${WRITABLE_COOKIE_PATH}"`);
+    }
+
+    ytDlpArgs.push(`"${url}"`);
+
+    const downloadProcess = spawn('yt-dlp', ytDlpArgs, { shell: true });
 
     downloadProcess.stdout.on('data', (data) => console.log(`[YT-DLP]: ${data.toString().trim()}`));
     downloadProcess.stderr.on('data', (data) => console.error(`[YT-DLP ERROR]: ${data.toString().trim()}`));
@@ -274,19 +289,27 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
     });
 });
 app.post('/api/audio', (req: Request, res: Response): any => {
-    const { url } = req.body;
+    const { url, cookieHeader } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const uniqueId = Date.now().toString();
     const outputPath = path.join(TEMP_DIR, `audio_${uniqueId}.mp3`);
 
-    // -x extracts audio, --audio-format forces mp3
-    const audioProcess = spawn('yt-dlp', [
-        '--cookies', `"${WRITABLE_COOKIE_PATH}"`,
+    const audioArgs = [
         '-x', '--audio-format', 'mp3',
-        '-o', `"${outputPath}"`,
-        `"${url}"`
-    ], { shell: true });
+        '--js-runtimes', 'node',
+        '-o', `"${outputPath}"`
+    ];
+
+    if (cookieHeader) {
+        audioArgs.push('--add-header', `"Cookie: ${cookieHeader}"`);
+    } else {
+        audioArgs.push('--cookies', `"${WRITABLE_COOKIE_PATH}"`);
+    }
+
+    audioArgs.push(`"${url}"`);
+
+    const audioProcess = spawn('yt-dlp', audioArgs, { shell: true });
 
     audioProcess.on('close', (code) => {
         if (code === 0 && fs.existsSync(outputPath)) {
