@@ -272,8 +272,6 @@ app.post('/api/download', async (req: Request, res: Response): Promise<any> => {
         '--no-playlist', 
         '-o', `"${ytTemplatePath}"`
     ];
-    // Simply append the URL; no cookie branching needed
-    ytDlpArgs.push(`"${url}"`);
 
     if (cookieHeader) {
         console.log('[YT-DLP] Converting live browser cookies to temp file...');
@@ -312,32 +310,34 @@ app.post('/api/audio', (req: Request, res: Response): any => {
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const uniqueId = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-    const outputPath = path.join(TEMP_DIR, `audio_${uniqueId}.mp3`);
+    const ytTemplatePath = path.join(TEMP_DIR, `audio_${uniqueId}.%(ext)s`);
+    const finalFilePath = path.join(TEMP_DIR, `audio_${uniqueId}.mp3`);
 
     const audioArgs = [
         '-x', '--audio-format', 'mp3',
         '--js-runtime', 'deno', 
-        '--impersonate', 'chrome',
-        '--extractor-args', '"youtube:player_client=ios,tv"', 
         '--no-playlist',
-        '-o', `"${outputPath}"`
+        '-o', `"${ytTemplatePath}"`
     ];
-    audioArgs.push(`"${url}"`);
 
     if (cookieHeader) {
-        audioArgs.push('--add-header', `"Cookie: ${cookieHeader}"`);
+        console.log('[YT-DLP] Using live browser cookies for audio...');
+        const uniqueCookiePath = path.join(TEMP_DIR, `cookie_${uniqueId}.txt`);
+        createTempCookieFile(cookieHeader, uniqueCookiePath);
+        audioArgs.push('--cookies', `"${uniqueCookiePath}"`);
     } else {
         audioArgs.push('--cookies', `"${WRITABLE_COOKIE_PATH}"`);
     }
 
+    // Only push the URL once!
     audioArgs.push(`"${url}"`);
 
     const audioProcess = spawn('yt-dlp', audioArgs, { shell: true });
 
     audioProcess.on('close', (code) => {
-        if (code === 0 && fs.existsSync(outputPath)) {
-            res.download(outputPath, 'audio.mp3', () => {
-                fs.unlink(outputPath, () => {});
+        if (code === 0 && fs.existsSync(finalFilePath)) {
+            res.download(finalFilePath, 'audio.mp3', () => {
+                fs.unlink(finalFilePath, () => {});
             });
         } else {
             res.status(500).json({ error: 'Failed to extract audio.' });
